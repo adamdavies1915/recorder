@@ -1,0 +1,62 @@
+name: "[TEST] Record WHIV - 10 min"
+
+on:
+  schedule:
+    # One-time test: Dec 9, 2025 at 6:55 PM Central (12:55 AM UTC Dec 10)
+    # Starts 5 min before 7pm show with buffer after
+    # DELETE THIS WORKFLOW AFTER TESTING
+    - cron: '55 0 10 12 *'
+  workflow_dispatch:
+    # Manual trigger for immediate testing
+
+jobs:
+  record-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Set timestamp for filename
+        id: timestamp
+        run: |
+          # Use Central Time for the filename
+          TIMESTAMP=$(TZ="America/Chicago" date +"%Y%m%d_%H%M")
+          echo "filename=whiv_TEST_${TIMESTAMP}.mp3" >> $GITHUB_OUTPUT
+          echo "Recording will be saved as: whiv_TEST_${TIMESTAMP}.mp3"
+
+      - name: Record stream (10 minutes test)
+        run: |
+          echo "=== TEST RECORDING (10 minutes) ==="
+          echo "Starting recording at $(date)"
+          echo "Stream URL: http://peridot.streamguys.com:5080/live-mp3"
+          echo "Duration: 600 seconds (10 minutes)"
+          echo ""
+          ffmpeg -i http://peridot.streamguys.com:5080/live-mp3 \
+            -t 600 \
+            -c copy \
+            -y \
+            "${{ steps.timestamp.outputs.filename }}"
+          echo ""
+          echo "Recording completed at $(date)"
+
+      - name: Log file size
+        run: |
+          echo "Recording file details:"
+          ls -lh "${{ steps.timestamp.outputs.filename }}"
+          SIZE=$(du -h "${{ steps.timestamp.outputs.filename }}" | cut -f1)
+          echo ""
+          echo "File size: ${SIZE}"
+
+      - name: Upload recording as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.timestamp.outputs.filename }}
+          path: ${{ steps.timestamp.outputs.filename }}
+          retention-days: 7
